@@ -4,9 +4,9 @@
  * computeSpawnTarget combines worktree-path validation and the project-trust
  * decision into one silent result that both the live Agent tool path and the
  * restart path consume. Tests pin the composition contract: blank/omitted
- * paths are trusted non-targets, validation failures map to a self-correctable
- * error, warnings are collected (not notified), and the trust decision is
- * resolved from the validated path.
+ * paths follow the parent session's own trust state, validation failures map
+ * to a self-correctable error, warnings are collected (not notified), and the
+ * trust decision is resolved from the validated path.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -80,7 +80,7 @@ function validatedTarget(overrides: Partial<Extract<WorktreeValidationResult, { 
 /* ------------------------------------------------------------------ */
 
 describe("computeSpawnTarget — omitted and blank paths", () => {
-  it("treats an omitted path as a trusted non-target without validating", async () => {
+  it("treats an omitted path as trusted when the parent session is trusted", async () => {
     const target = await computeSpawnTarget(fakeCtx(), undefined);
 
     expect(target).toEqual({ ok: true, projectTrusted: true, warnings: [] });
@@ -88,10 +88,18 @@ describe("computeSpawnTarget — omitted and blank paths", () => {
     expect(mockResolveSubagentTrust).not.toHaveBeenCalled();
   });
 
-  it("treats a whitespace path as omitted (no bogus discovery dir downstream)", async () => {
-    const target = await computeSpawnTarget(fakeCtx(), "   ");
+  it("inherits the parent session's untrusted state for an omitted path", async () => {
+    const target = await computeSpawnTarget(fakeCtx({ isProjectTrusted: () => false }), undefined);
 
-    expect(target).toEqual({ ok: true, projectTrusted: true, warnings: [] });
+    expect(target).toEqual({ ok: true, projectTrusted: false, warnings: [] });
+    expect(mockValidateWorktreePath).not.toHaveBeenCalled();
+    expect(mockResolveSubagentTrust).not.toHaveBeenCalled();
+  });
+
+  it("inherits the parent session's untrusted state for a whitespace path", async () => {
+    const target = await computeSpawnTarget(fakeCtx({ isProjectTrusted: () => false }), "   ");
+
+    expect(target).toEqual({ ok: true, projectTrusted: false, warnings: [] });
     expect(mockValidateWorktreePath).not.toHaveBeenCalled();
   });
 
@@ -124,6 +132,7 @@ describe("computeSpawnTarget — validation plus trust", () => {
     expect(mockResolveSubagentTrust).toHaveBeenCalledWith({
       targetPath: "/repo-b-resolved",
       sameRepo: false,
+      parentTrusted: true,
       deps: trustDeps,
     });
     expect(target).toEqual({
@@ -141,6 +150,14 @@ describe("computeSpawnTarget — validation plus trust", () => {
     await computeSpawnTarget(fakeCtx({ cwd: "/ctx/cwd" }), "/repo-b");
 
     expect(mockCreateSubagentTrustDeps).toHaveBeenCalledWith(expect.any(String), "/session/cwd");
+  });
+
+  it("passes the parent session's trust state to the resolver", async () => {
+    validatedTarget({ sameRepo: true });
+
+    await computeSpawnTarget(fakeCtx({ isProjectTrusted: () => false }), "/wt/feature");
+
+    expect(mockResolveSubagentTrust).toHaveBeenCalledWith(expect.objectContaining({ parentTrusted: false }));
   });
 
   it("collects validator warnings into the result instead of notifying", async () => {

@@ -192,7 +192,11 @@ export function buildAgentActionsList(
     items.push({ value: "view-error", label: "View error" });
   }
   if (isRunning) {
-    items.push({ value: "steer", label: "Steer" });
+    // Steer only exists for a run that owns a session: a queued agent has no
+    // session yet, and manager.steer always rejects it.
+    if (record.lifecycle.status === "running") {
+      items.push({ value: "steer", label: "Steer" });
+    }
     items.push({ value: "stop", label: "Stop" });
   } else {
     items.push({ value: "clear", label: "Clear" });

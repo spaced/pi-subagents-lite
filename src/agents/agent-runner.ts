@@ -109,7 +109,8 @@ interface RunOptions extends RunTunables, RunCallbacks {
   cwd?: string;
   /**
    * Trust state for the target project. False = ignore the target's project
-   * resources (untrusted cross-repo target). Absent/true = load them.
+   * resources (untrusted cross-repo target). Absent = inherit the parent
+   * session's own trust state; true = load them.
    */
   projectTrusted?: boolean;
   /** Parent abort signal — when aborted, the subagent is also stopped. */
@@ -793,7 +794,7 @@ export async function createChildSession(
     // files) and the session context (ctx.isProjectTrusted). pi reads
     // defaultTools and the extension selection from this same instance.
     const settingsManager = SettingsManager.create(effectiveCwd, getAgentDir(), {
-      projectTrusted: options.projectTrusted !== false,
+      projectTrusted: options.projectTrusted ?? ctx.isProjectTrusted(),
     });
 
     const config = getConfig(type, store.agent.loadSkillsImplicitly, store.agent.loadExtensionsImplicitly);

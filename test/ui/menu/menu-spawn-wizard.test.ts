@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mockModules, selectDialogInstances, resetSelectDialogInstances, resetConfig } from "../../menu-mock-setup.js";
 import { createMockCtx } from "../../menu-test-helpers.js";
-import { getAgentConfig } from "../../../src/agents/agent-types.js";
+import { getAgentConfig, discoverNewAgents } from "../../../src/agents/agent-types.js";
 import { clampThinkingLevel, type Api, type Model, type ModelThinkingLevel } from "@earendil-works/pi-ai";
 import type { Component, SelectItem, SettingItem, SettingsListTheme, SelectListTheme } from "@earendil-works/pi-tui";
 import type { ThinkingLevel } from "../../../src/types.js";
@@ -1064,6 +1064,25 @@ describe("showSpawnAgentMenu — spawn action", () => {
     expect(options.worktreePath).toBe("/test-feature");
   });
 
+  it("inherits the parent session's untrusted state for a worktree spawn", async () => {
+    setupExecMock({ inGitRepo: true, worktrees: [{ path: "/test-feature", branch: "feature" }] });
+    const ctx = createMockWizardCtx(["general-purpose", "fix the bug", undefined]);
+    ctx.isProjectTrusted = vi.fn(() => false);
+    await completeWizard(ctx);
+
+    const wtItem = settingsListCalls[1].items.find((i) => i.id === "worktree")!;
+    wtItem.submenu!("Inherits parent cwd", vi.fn());
+    selectDialogInstances[selectDialogInstances.length - 1].callbacks.onSelect("/test-feature");
+
+    const spawnItem = settingsListCalls[1].items.find((i) => i.id === "spawn")!;
+    spawnItem.submenu!("", vi.fn());
+
+    await vi.waitFor(() => expect(mockModules.mockManager.spawn).toHaveBeenCalled());
+    const options = mockModules.mockManager.spawn.mock.calls[0][4];
+    expect(options.projectTrusted).toBe(false);
+    expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("not trusted"), "warning");
+  });
+
   it("notifies 'Spawn failed' when the coordinator spawn rejects", async () => {
     const ctx = createMockWizardCtx(["general-purpose", "fix the bug", undefined]);
     await completeWizard(ctx);
@@ -1076,5 +1095,25 @@ describe("showSpawnAgentMenu — spawn action", () => {
 
     await vi.waitFor(() => expect(ctx.ui.notify).toHaveBeenCalled());
     expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Spawn failed: boom"), "error");
+  });
+
+  it("warns and still spawns when agent discovery in the worktree fails", async () => {
+    setupExecMock({ inGitRepo: true, worktrees: [{ path: "/test-feature", branch: "feature" }] });
+    const ctx = createMockWizardCtx(["general-purpose", "fix the bug", undefined]);
+    await completeWizard(ctx);
+
+    const wtItem = settingsListCalls[1].items.find((i) => i.id === "worktree")!;
+    wtItem.submenu!("Inherits parent cwd", vi.fn());
+    selectDialogInstances[selectDialogInstances.length - 1].callbacks.onSelect("/test-feature");
+
+    vi.mocked(discoverNewAgents).mockRejectedValueOnce(new Error("EACCES"));
+    const spawnItem = settingsListCalls[1].items.find((i) => i.id === "spawn")!;
+    spawnItem.submenu!("", vi.fn());
+
+    await vi.waitFor(() => expect(mockModules.mockManager.spawn).toHaveBeenCalled());
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      expect.stringContaining("Agent discovery failed in /test-feature: EACCES"),
+      "warning",
+    );
   });
 });

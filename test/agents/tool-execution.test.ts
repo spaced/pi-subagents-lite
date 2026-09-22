@@ -614,6 +614,19 @@ describe("executeAgentTool — cross-repo trust gate", () => {
     expect(spawnOptions.projectTrusted).toBe(true);
     expect(ctx.ui.notify).not.toHaveBeenCalled();
   });
+
+  it("inherits the parent session's untrusted state for a spawn without a worktree", async () => {
+    const untrustedCtx = asExtensionContext({
+      ...fakeCtx(),
+      isProjectTrusted: () => false,
+      ui: { notify: vi.fn() },
+    });
+
+    await executeAgentTool("tc-tr-6", makeParams({}), undefined, undefined, untrustedCtx);
+
+    const spawnOptions = mockSpawn.mock.calls[0][4];
+    expect(spawnOptions.projectTrusted).toBe(false);
+  });
 });
 
 describe("executeAgentTool — foreground error result", () => {

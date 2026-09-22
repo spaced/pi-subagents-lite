@@ -204,6 +204,33 @@ describe("AgentManager", () => {
       expect(manager.getTotalAgentCount()).toBe(0);
     });
 
+    it("releases the reserved concurrency slot when startAgent throws", () => {
+      manager = new AgentManager(onComplete, { default: 2, models: { "test/model": 2 } });
+
+      // The failing spawn reserves a slot, then throws before a run exists.
+      mockModules.mockRunAgent.mockImplementationOnce(() => {
+        throw new Error("start failed");
+      });
+      expect(() =>
+        manager.spawn(fakePi(), fakeCtx(), "general-purpose", "fail", { description: "fail", modelKey: "test/model" }),
+      ).toThrow("start failed");
+
+      // Both slots must still be free: two more spawns start running instead
+      // of the second one queueing behind a leaked reservation.
+      mockModules.mockRunAgent.mockResolvedValue(mockRunResult());
+      const first = manager.spawn(fakePi(), fakeCtx(), "general-purpose", "a", {
+        description: "a",
+        modelKey: "test/model",
+      });
+      const second = manager.spawn(fakePi(), fakeCtx(), "general-purpose", "b", {
+        description: "b",
+        modelKey: "test/model",
+      });
+
+      expect(manager.getRecord(first)!.lifecycle.status).toBe("running");
+      expect(manager.getRecord(second)!.lifecycle.status).toBe("running");
+    });
+
     it("does not count queued agent that fails to start", async () => {
       manager = new AgentManager(onComplete, { default: 1, models: { "test/model": 1 } });
 

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Subagent spawns inherit the parent session's project trust.** A spawn without a `worktree_path` (and a same-repo worktree target) was always treated as trusted, so in a project whose trust the user declined, the subagent's resource loader still imported the project's `.pi/extensions`, skills, and settings — resources pi's own session refuses to load. Omitted paths now use `ctx.isProjectTrusted()`, and same-repo targets use the saved trust decision for the target path when one exists, falling back to the parent's state; an explicit saved decision still wins. Cross-repo gating is unchanged.
+- **A failed agent start no longer leaks its concurrency slot.** When `startAgent` threw after reserving a slot (e.g. the output-transcript file could not be created), neither the spawn nor the queue-drain failure path released the reservation, permanently lowering that model's effective concurrency. The reservation is now released on every pre-run failure.
+- **Spawn wizard no longer silently drops a spawn when agent discovery fails.** An unreadable worktree `.pi/agents/` directory made the promise chain swallow the error: the menu closed with no spawn and no message. The wizard now warns and proceeds with the spawn the user asked for.
+- **Queued agents no longer offer a Steer action.** `manager.steer` always rejects a queued agent (it has no session yet); the action is now offered only while running.
+
 ## [1.16.0] - 2026-10-05
 
 ### Added
