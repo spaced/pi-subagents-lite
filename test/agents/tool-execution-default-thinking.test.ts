@@ -544,8 +544,9 @@ describe("executeAgentTool — defaultMaxTurns fallback", () => {
     expect(spawnMaxTurns()).toBe(50);
   });
 
-  it("prefers explicit max_turns param over store defaultMaxTurns", async () => {
+  it("ignores a non-schema max_turns key (config and frontmatter own the limit)", async () => {
     storeState.defaultMaxTurns = 50;
+    mockGetAgentConfig.mockReturnValue(makeAgentConfig({ maxTurns: undefined }));
 
     await executeAgentTool(
       "tc-mt-2",
@@ -555,7 +556,7 @@ describe("executeAgentTool — defaultMaxTurns fallback", () => {
       ctx,
     );
 
-    expect(spawnMaxTurns()).toBe(10);
+    expect(spawnMaxTurns()).toBe(50);
   });
 
   it("prefers agent frontmatter maxTurns over store defaultMaxTurns", async () => {

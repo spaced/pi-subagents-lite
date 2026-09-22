@@ -298,57 +298,71 @@ export class AgentManager {
   ) {
     if (concurrencySlot) concurrencySlot.running++;
 
-    record.lifecycle.status = "running";
-    record.lifecycle.startedAt = Date.now();
-    // Set synchronously before the run so a stop before the session exists
-    // still renders as ran-then-stopped, not never-started.
-    record.lifecycle.started = true;
-    // The idle clock starts here, so a hung pre-session init phase is covered.
-    this.watchdog.start(id);
+    // The run never started, so the settlement chain (the only other slot
+    // release) will never run; release the reservation here or the slot leaks
+    // for the rest of the session.
+    let promise: Promise<RunResult>;
+    try {
+      record.lifecycle.status = "running";
+      record.lifecycle.startedAt = Date.now();
+      // Set synchronously before the run so a stop before the session exists
+      // still renders as ran-then-stopped, not never-started.
+      record.lifecycle.started = true;
+      // The idle clock starts here, so a hung pre-session init phase is covered.
+      this.watchdog.start(id);
 
-    // Output transcript: agent frontmatter overrides the global setting (default false).
-    const agentConfig = getAgentConfig(type);
-    const outputTranscript = agentConfig?.outputTranscript ?? getStore().agent.outputTranscript;
-    if (outputTranscript) {
-      record.execution.outputLog = new AgentOutputLog(id, prompt, undefined, getStore().agent.outputThinkingBufferSize);
-      record.display.outputFile = record.execution.outputLog.path;
-    }
+      // Output transcript: agent frontmatter overrides the global setting (default false).
+      const agentConfig = getAgentConfig(type);
+      const outputTranscript = agentConfig?.outputTranscript ?? getStore().agent.outputTranscript;
+      if (outputTranscript) {
+        record.execution.outputLog = new AgentOutputLog(
+          id,
+          prompt,
+          undefined,
+          getStore().agent.outputThinkingBufferSize,
+        );
+        record.display.outputFile = record.execution.outputLog.path;
+      }
 
-    this.onStart?.(record);
+      this.onStart?.(record);
 
-    const promise = runAgent(ctx, type, prompt, {
-      pi,
-      agentId: id,
-      model: options.model,
-      maxTurns: options.maxTurns,
-      maxTokens: options.maxTokens,
-      thinkingLevel: options.thinkingLevel,
-      cwd: options.worktreePath,
-      graceTurns: options.graceTurns,
-      projectTrusted: options.projectTrusted,
-      signal: record.execution.abortController!.signal,
-      ...this.runTrackingCallbacks(record, options, (turnCount) => {
-        record.stats.turnCount = turnCount;
-        options.onTurnEnd?.(turnCount);
-      }),
-      onSessionCreated: (session) => {
-        record.execution.session = session;
-        // Flush any steers that arrived before the session was ready
-        if (record.execution.pendingSteers?.length) {
-          for (const msg of record.execution.pendingSteers) {
-            session.steer(msg).catch(() => {
-              // Steer is advisory — a failure here (e.g. session already aborting)
-              // is fine; the user can re-send if needed.
-            });
+      promise = runAgent(ctx, type, prompt, {
+        pi,
+        agentId: id,
+        model: options.model,
+        maxTurns: options.maxTurns,
+        maxTokens: options.maxTokens,
+        thinkingLevel: options.thinkingLevel,
+        cwd: options.worktreePath,
+        graceTurns: options.graceTurns,
+        projectTrusted: options.projectTrusted,
+        signal: record.execution.abortController!.signal,
+        ...this.runTrackingCallbacks(record, options, (turnCount) => {
+          record.stats.turnCount = turnCount;
+          options.onTurnEnd?.(turnCount);
+        }),
+        onSessionCreated: (session) => {
+          record.execution.session = session;
+          // Flush any steers that arrived before the session was ready
+          if (record.execution.pendingSteers?.length) {
+            for (const msg of record.execution.pendingSteers) {
+              session.steer(msg).catch(() => {
+                // Steer is advisory — a failure here (e.g. session already aborting)
+                // is fine; the user can re-send if needed.
+              });
+            }
+            record.execution.pendingSteers = undefined;
           }
-          record.execution.pendingSteers = undefined;
-        }
-        if (record.execution.outputLog) {
-          record.execution.outputLog.attach(session);
-        }
-        options.onSessionCreated?.(session);
-      },
-    });
+          if (record.execution.outputLog) {
+            record.execution.outputLog.attach(session);
+          }
+          options.onSessionCreated?.(session);
+        },
+      });
+    } catch (err) {
+      if (concurrencySlot) concurrencySlot.running--;
+      throw err;
+    }
     this.attachSettlementChain(record, promise, concurrencySlot);
   }
 

@@ -8,7 +8,7 @@
  * is co-located here because it exists solely to feed the spawn wizard's worktree_path.
  */
 
-import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, type ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { SettingsList, SelectList, type SettingItem } from "@earendil-works/pi-tui";
 import { getSupportedThinkingLevels, type Model } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "../../types.ts";
@@ -32,6 +32,8 @@ import { createModelSelectSubmenu } from "./submenus/model-select.ts";
 import { createNumericSubmenu, createInputSubmenu } from "./submenus/numeric-input.ts";
 import { SettingsListWrapper } from "./wrappers/settings-list.ts";
 import { getPiInstance, getSessionCtx, getWidget, getStore, getCoordinator } from "../../shell.ts";
+import { resolveSubagentTrust, createSubagentTrustDeps } from "../../spawn/project-trust.ts";
+import { surfaceSpawnTargetWarnings } from "../../spawn/spawn-target.ts";
 
 // --- Worktree picker helpers ---
 
@@ -376,7 +378,16 @@ export async function showSpawnAgentMenu(ctx: ExtensionCommandContext, modelOpti
 
           const doSpawn = async () => {
             if (currentWorktreePath) {
-              await discoverNewAgents(`${currentWorktreePath}/.pi/agents`);
+              // Discovery only registers types for future spawns; a failed scan
+              // must not silently abort the spawn the user asked for.
+              try {
+                await discoverNewAgents(`${currentWorktreePath}/.pi/agents`);
+              } catch (err) {
+                ctx.ui.notify(
+                  `Agent discovery failed in ${currentWorktreePath}: ${err instanceof Error ? err.message : String(err)}`,
+                  "warning",
+                );
+              }
             }
 
             const widget = getWidget();
@@ -384,6 +395,26 @@ export async function showSpawnAgentMenu(ctx: ExtensionCommandContext, modelOpti
               widget.setUICtx(ctx.ui as unknown as import("../agent-widget.ts").UICtx);
               widget.ensureTimer();
             }
+
+            // Same trust rule as the Agent tool path: the wizard lists only
+            // same-repo worktrees, so the target follows the saved decision for
+            // its path when one exists, else the parent session's own state.
+            const parentTrusted = ctx.isProjectTrusted();
+            const projectTrusted = currentWorktreePath
+              ? resolveSubagentTrust({
+                  targetPath: currentWorktreePath,
+                  sameRepo: true,
+                  parentTrusted,
+                  deps: createSubagentTrustDeps(getAgentDir(), parentCwd),
+                })
+              : parentTrusted;
+            surfaceSpawnTargetWarnings(ctx.ui, {
+              ok: true,
+              resolvedPath: currentWorktreePath,
+              worktreeLabel: currentWorktreePath ? currentWorktreeLabel : undefined,
+              projectTrusted,
+              warnings: [],
+            });
 
             const coordinator = getCoordinator()!;
             try {
@@ -399,6 +430,7 @@ export async function showSpawnAgentMenu(ctx: ExtensionCommandContext, modelOpti
                 graceTurns,
                 worktreePath: currentWorktreePath,
                 worktreeLabel: currentWorktreePath ? currentWorktreeLabel : undefined,
+                projectTrusted,
                 invocation: {
                   modelName: model?.id,
                   thinkingLevel: thinking,

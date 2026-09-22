@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Migrated the development environment and tooling to Vite+: Node is pinned via `.node-version`, while dependency installation, Vitest, Oxfmt, Oxlint, and type checks run through `vp`. Oxlint now enforces the test-only no-explicit-`any` policy, replacing its Bash scanner. npm 11.9.0 is the pinned package-manager backend. The extension remains source-only, with no generated build output.
 
+### Fixed
+
+- **Subagent spawns inherit the parent session's project trust.** A spawn without a `worktree_path` (and a same-repo worktree target) was always treated as trusted, so in a project whose trust the user declined, the subagent's resource loader still imported the project's `.pi/extensions`, skills, and settings — resources pi's own session refuses to load. Omitted paths now use `ctx.isProjectTrusted()`, and same-repo targets use the saved trust decision for the target path when one exists, falling back to the parent's state; an explicit saved decision still wins. Cross-repo gating is unchanged.
+- **A failed agent start no longer leaks its concurrency slot.** When `startAgent` threw after reserving a slot (e.g. the output-transcript file could not be created), neither the spawn nor the queue-drain failure path released the reservation, permanently lowering that model's effective concurrency. The reservation is now released on every pre-run failure.
+- **Spawn wizard no longer silently drops a spawn when agent discovery fails.** An unreadable worktree `.pi/agents/` directory made the promise chain swallow the error: the menu closed with no spawn and no message. The wizard now warns and proceeds with the spawn the user asked for.
+- **Queued agents no longer offer a Steer action.** `manager.steer` always rejects a queued agent (it has no session yet); the action is now offered only while running.
+
 ## [1.17.1] - 2026-10-16
 
 ### Fixed
@@ -38,6 +45,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Both Thinking level annotations follow the same parent level.** Model settings fell back to the current session context and the wizard did not, so the two rows disagreed about one run.
 - **A Thinking level picked in the spawn wizard is clamped to the model the Subagent gets.** Choosing `(inherits parent)` was the one model change that skipped the clamp.
 - **The spawn wizard reads pi's per-model level for the model the Subagent actually runs on.** It used the parent's model even where the agent file pins another, so it offered levels that model cannot run.
+=======
+### Fixed
+
+- **Subagent spawns inherit the parent session's project trust.** A spawn without a `worktree_path` (and a same-repo worktree target) was always treated as trusted, so in a project whose trust the user declined, the subagent's resource loader still imported the project's `.pi/extensions`, skills, and settings — resources pi's own session refuses to load. Omitted paths now use `ctx.isProjectTrusted()`, and same-repo targets use the saved trust decision for the target path when one exists, falling back to the parent's state; an explicit saved decision still wins. Cross-repo gating is unchanged.
+- **A failed agent start no longer leaks its concurrency slot.** When `startAgent` threw after reserving a slot (e.g. the output-transcript file could not be created), neither the spawn nor the queue-drain failure path released the reservation, permanently lowering that model's effective concurrency. The reservation is now released on every pre-run failure.
+- **Spawn wizard no longer silently drops a spawn when agent discovery fails.** An unreadable worktree `.pi/agents/` directory made the promise chain swallow the error: the menu closed with no spawn and no message. The wizard now warns and proceeds with the spawn the user asked for.
+- **Queued agents no longer offer a Steer action.** `manager.steer` always rejects a queued agent (it has no session yet); the action is now offered only while running.
+>>>>>>> 56a5fc60 (fix: close trust and failure-path gaps in agent spawning)
 
 ## [1.16.0] - 2026-10-05
 

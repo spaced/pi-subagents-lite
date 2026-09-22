@@ -670,6 +670,7 @@ vi.mock("../src/shell.js", async () => {
           graceTurns: intent.graceTurns,
           worktreePath: intent.worktreePath,
           worktreeLabel: intent.worktreeLabel,
+          projectTrusted: intent.projectTrusted,
           invocation: intent.invocation,
           // Mirror the real coordinator's spread: the signal key exists only
           // when the intent carried one — menu-wizard spawns never do.

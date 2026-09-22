@@ -256,6 +256,25 @@ describe("buildAgentActionsList — actions submenu", () => {
     expect(values).toContain("stop");
   });
 
+  it("shows Stop but not Steer for a queued agent", () => {
+    const record = makeRecord({
+      lifecycle: { status: "queued", startedAt: Date.now() - 20000 },
+      result: "",
+    });
+    const list = buildAgentActionsList(
+      createMockCtx(),
+      record,
+      noopTheme,
+      () => {},
+      () => {},
+      () => {},
+    );
+    const values = selectListView(list).items.map((i) => i.value);
+    // A queued agent has no session, so manager.steer always rejects it.
+    expect(values).not.toContain("steer");
+    expect(values).toContain("stop");
+  });
+
   it("does not show Steer/Stop for completed agent", () => {
     const list = buildAgentActionsList(
       createMockCtx(),
