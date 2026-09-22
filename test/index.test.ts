@@ -328,6 +328,7 @@ describe("tool_call listener — guards", () => {
         find: vi.fn((p: string, i: string) => ({ provider: p, id: i })),
         getAvailable: vi.fn(() => []),
       },
+      isProjectTrusted: () => true,
     };
 
     const event: CustomToolCallEvent = {

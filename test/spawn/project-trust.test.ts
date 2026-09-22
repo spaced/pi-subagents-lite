@@ -3,7 +3,8 @@
  *
  * resolveSubagentTrust decides whether a subagent session treats the target
  * project as trusted:
- *   - Same-repo targets are never gated.
+ *   - Same-repo targets follow the saved decision when one exists, otherwise
+ *     the parent session's own trust state (parentTrusted).
  *   - Cross-repo targets with no trust-requiring resources are never gated.
  *   - Cross-repo targets with trust-requiring resources resolve from the
  *     nearest saved trust decision; undecided falls back to the global
@@ -35,22 +36,44 @@ function makeDeps(overrides: Partial<SubagentTrustDeps> = {}): SubagentTrustDeps
 }
 
 describe("resolveSubagentTrust", () => {
-  it("never gates same-repo targets, even with untrusted saved decisions", () => {
+  it("applies a saved untrusted decision for a same-repo target", () => {
     const result = resolveSubagentTrust({
       targetPath: "/wt/feature",
       sameRepo: true,
+      parentTrusted: true,
       deps: makeDeps({
         hasTrustRequiringProjectResources: () => true,
         getTrustDecision: () => false,
       }),
     });
+    expect(result).toBe(false);
+  });
+
+  it("inherits the parent's trust for an undecided same-repo target", () => {
+    const result = resolveSubagentTrust({
+      targetPath: "/wt/feature",
+      sameRepo: true,
+      parentTrusted: true,
+      deps: makeDeps({ getTrustDecision: () => null }),
+    });
     expect(result).toBe(true);
+  });
+
+  it("keeps an undecided same-repo target untrusted when the parent is untrusted", () => {
+    const result = resolveSubagentTrust({
+      targetPath: "/wt/feature",
+      sameRepo: true,
+      parentTrusted: false,
+      deps: makeDeps({ getTrustDecision: () => null }),
+    });
+    expect(result).toBe(false);
   });
 
   it("does not gate cross-repo targets without trust-requiring resources", () => {
     const result = resolveSubagentTrust({
       targetPath: "/repo-b",
       sameRepo: false,
+      parentTrusted: false,
       deps: makeDeps({ hasTrustRequiringProjectResources: () => false }),
     });
     expect(result).toBe(true);
@@ -60,6 +83,7 @@ describe("resolveSubagentTrust", () => {
     const result = resolveSubagentTrust({
       targetPath: "/repo-b",
       sameRepo: false,
+      parentTrusted: true,
       deps: makeDeps({
         hasTrustRequiringProjectResources: () => true,
         getTrustDecision: () => false,
@@ -72,6 +96,7 @@ describe("resolveSubagentTrust", () => {
     const result = resolveSubagentTrust({
       targetPath: "/repo-b",
       sameRepo: false,
+      parentTrusted: false,
       deps: makeDeps({
         hasTrustRequiringProjectResources: () => true,
         getTrustDecision: () => true,
@@ -84,6 +109,7 @@ describe("resolveSubagentTrust", () => {
     const result = resolveSubagentTrust({
       targetPath: "/repo-b",
       sameRepo: false,
+      parentTrusted: false,
       deps: makeDeps({
         hasTrustRequiringProjectResources: () => true,
         getTrustDecision: () => null,
@@ -97,6 +123,7 @@ describe("resolveSubagentTrust", () => {
     const result = resolveSubagentTrust({
       targetPath: "/repo-b",
       sameRepo: false,
+      parentTrusted: true,
       deps: makeDeps({
         hasTrustRequiringProjectResources: () => true,
         getTrustDecision: () => null,
@@ -110,6 +137,7 @@ describe("resolveSubagentTrust", () => {
     const result = resolveSubagentTrust({
       targetPath: "/repo-b",
       sameRepo: false,
+      parentTrusted: true,
       deps: makeDeps({
         hasTrustRequiringProjectResources: () => true,
         getTrustDecision: () => null,
@@ -126,6 +154,7 @@ describe("resolveSubagentTrust", () => {
     const result = resolveSubagentTrust({
       targetPath: "/repo-b",
       sameRepo: false,
+      parentTrusted: true,
       deps: makeDeps({
         hasTrustRequiringProjectResources: () => true,
         getTrustDecision: () => true,
@@ -166,7 +195,7 @@ describe("resolveSubagentTrust — real SDK building blocks", () => {
     writeFileSync(join(targetDir, ".pi", "settings.json"), "{}");
     const deps = createSubagentTrustDeps(agentDir, parentDir);
 
-    const result = resolveSubagentTrust({ targetPath: targetDir, sameRepo: false, deps });
+    const result = resolveSubagentTrust({ targetPath: targetDir, sameRepo: false, parentTrusted: false, deps });
 
     expect(result).toBe(false);
   });
@@ -177,7 +206,7 @@ describe("resolveSubagentTrust — real SDK building blocks", () => {
     writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ defaultProjectTrust: "always" }));
     const deps = createSubagentTrustDeps(agentDir, parentDir);
 
-    const result = resolveSubagentTrust({ targetPath: targetDir, sameRepo: false, deps });
+    const result = resolveSubagentTrust({ targetPath: targetDir, sameRepo: false, parentTrusted: false, deps });
 
     expect(result).toBe(true);
   });
@@ -189,14 +218,20 @@ describe("resolveSubagentTrust — real SDK building blocks", () => {
     new ProjectTrustStore(agentDir).set(targetDir, true);
     const deps = createSubagentTrustDeps(agentDir, parentDir);
 
-    const result = resolveSubagentTrust({ targetPath: targetDir, sameRepo: false, deps });
+    const result = resolveSubagentTrust({ targetPath: targetDir, sameRepo: false, parentTrusted: false, deps });
 
     expect(result).toBe(true);
   });
 
   it("does not gate a target without trust-requiring resources", async () => {
     const deps = createSubagentTrustDeps(agentDir, parentDir);
-    const result = resolveSubagentTrust({ targetPath: targetDir, sameRepo: false, deps });
+    const result = resolveSubagentTrust({ targetPath: targetDir, sameRepo: false, parentTrusted: false, deps });
     expect(result).toBe(true);
+  });
+
+  it("follows the parent's untrusted state for an undecided same-repo target", async () => {
+    const deps = createSubagentTrustDeps(agentDir, parentDir);
+    const result = resolveSubagentTrust({ targetPath: targetDir, sameRepo: true, parentTrusted: false, deps });
+    expect(result).toBe(false);
   });
 });

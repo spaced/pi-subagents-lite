@@ -33,10 +33,11 @@ export type SpawnTarget =
  * the live path established, enforced here so both entry points share it.
  */
 export async function computeSpawnTarget(ctx: ExtensionContext, rawWorktreePath: unknown): Promise<SpawnTarget> {
-  // Non-strings and empty/whitespace → omitted: nothing to validate, nothing
-  // to gate.
+  // Non-strings and empty/whitespace → omitted: nothing to validate. The
+  // subagent runs in the parent session's cwd, so it follows the parent's own
+  // trust state instead of assuming trusted.
   if (typeof rawWorktreePath !== "string" || rawWorktreePath.trim() === "") {
-    return { ok: true, projectTrusted: true, warnings: [] };
+    return { ok: true, projectTrusted: ctx.isProjectTrusted(), warnings: [] };
   }
   const warnings: string[] = [];
   try {
@@ -50,12 +51,14 @@ export async function computeSpawnTarget(ctx: ExtensionContext, rawWorktreePath:
 
     const resolvedPath = validation.resolvedPath!; // non-empty paths always resolve
 
-    // Cross-repo targets are gated by pi's trust framework. Same-repo paths
-    // are never gated; an untrusted target still spawns but with its project
-    // resources ignored and a warning surfaced.
+    // Cross-repo targets are gated by pi's trust framework; same-repo targets
+    // inherit the parent session's decision when the trust store has none.
+    // An untrusted target still spawns but with its project resources ignored
+    // and a warning surfaced.
     const projectTrusted = resolveSubagentTrust({
       targetPath: resolvedPath,
       sameRepo: validation.sameRepo === true,
+      parentTrusted: ctx.isProjectTrusted(),
       deps: createSubagentTrustDeps(getAgentDir(), parentCwd),
     });
     return {

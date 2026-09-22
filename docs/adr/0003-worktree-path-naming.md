@@ -58,3 +58,20 @@ rejected the main checkout, and it stays accepted.
   list same-repo worktrees only.
 - The param name stays `worktree_path`; no new parameter (a generic
   `working_directory` param remains explicitly out of scope).
+
+## Amendment (2026-09): same-repo targets follow the parent session's trust
+
+The earlier amendment's "never gated" rule assumed the parent session was
+trusted. It is not always: pi can run a session in a project whose trust the user
+declined, and this extension gates its own project config and `.pi/agents`
+discovery on `ctx.isProjectTrusted()` — but a subagent spawn without a
+`worktree_path` (or with a same-repo one) bypassed that decision and loaded the
+untrusted project's extensions, skills, and settings into the subagent session.
+
+- Same-repo targets now resolve trust as the `ProjectTrustStore`
+  nearest-ancestor decision when one exists, falling back to the parent
+  session's `ctx.isProjectTrusted()`; an explicit saved decision still wins.
+- An omitted or blank `worktree_path` (the subagent runs in the parent's cwd)
+  follows the parent session's trust state directly.
+- Cross-repo behavior is unchanged: trust-requiring resources consult the saved
+  decision, then the global `defaultProjectTrust` setting.
