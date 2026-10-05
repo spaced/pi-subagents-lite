@@ -1,4 +1,5 @@
 import type { AgentRecord } from "./types.ts";
+import { AGENT_STATE_CHANNEL } from "./types.ts";
 
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
@@ -17,6 +18,7 @@ import {
   getManager,
   getWidget,
   getCoordinator,
+  getPiInstance,
   getStore,
   setSessionCtx,
   setManager,
@@ -43,6 +45,7 @@ export function ensureManagerAndWidget(): void {
       undefined,
       getStore().concurrency as unknown as ConstructorParameters<typeof AgentManager>[1],
       onStart,
+      (state) => getPiInstance()?.events.emit(AGENT_STATE_CHANNEL, state),
     );
     setManager(newManager);
     // Sync the manager as a config side-effect target (concurrency setters call setConcurrency).

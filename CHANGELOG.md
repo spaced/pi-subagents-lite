@@ -11,11 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The widget's activity line can show which programs a running `bash` call has started, behind the new `widgetShowBashPrograms` setting (`/agents` → Settings → Widget → Display → Show bash programs; global config, off by default) (`running: sleep ×10, cat (12s)…`: repeats counted, first four names then `+N`, plus how long the oldest running call has gone once it passes a second) instead of just `running command…`. It reads `/proc` at most once a second while the same `bash` calls are running (a new call costs a read of its own) and only while a `bash` call is running and the widget is visible, so the setting takes effect on the next read; with it off nothing is sampled and the activity line keeps its generic `running command…`. Linux only: it finds the call's shell through `/proc` by its `PI_SESSION_ID` and walks through subshells and wrappers like `timeout`/`env`/`tokf`/`rtk` to the program on each branch; other platforms have no probe and keep `running command…` even with the setting on.
 - The compact conversation viewer collapses a `codemode` call to its nested tool rows instead of an escaped `code=...` argument, and shows the script itself when expanded. Those rows use the same form as the top-level rows (`read package.json:1-12`, `$ rm -f file`), consecutive eligible calls group into the same summary row the viewer uses elsewhere, counting the calls that failed or were cancelled, excluded calls stay individually visible with Pi-style status icons, expanding reveals why a nested call failed, and the trace updates live while the script runs.
+- **Agent state publication.** The manager publishes an `AgentStateSnapshot` (per-agent id, type, status, live context-usage percent) on the shared `pi.events` bus under the `pi-subagents-lite:state` channel on every subagent assistant message, for cross-extension consumers.
+- **Explicit per-call model override is preserved.** Passing `model` to the Agent tool no longer gets overwritten by the agent's configured/default model; the override is also surfaced in the spawn display (cherry-picked from Atif Mustaffa's fork).
 
 ### Fixed
 
 - Parallel tool calls starting in the same millisecond no longer overwrite each other in the widget's active-tool list.
 - Two `bash` calls running at once read `running 2 commands…` in the widget's activity line instead of `running command 2 files…`.
+- **Subagent spawns inherit the parent session's project trust.** A spawn without a `worktree_path` (and a same-repo worktree target) was always treated as trusted, so in a project whose trust the user declined, the subagent's resource loader still imported the project's `.pi/extensions`, skills, and settings — resources pi's own session refuses to load. Omitted paths now use `ctx.isProjectTrusted()`, and same-repo targets use the saved trust decision for the target path when one exists, falling back to the parent's state; an explicit saved decision still wins. Cross-repo gating is unchanged.
+- **A failed agent start no longer leaks its concurrency slot.** When `startAgent` threw after reserving a slot (e.g. the output-transcript file could not be created), neither the spawn nor the queue-drain failure path released the reservation, permanently lowering that model's effective concurrency. The reservation is now released on every pre-run failure.
+- **Spawn wizard no longer silently drops a spawn when agent discovery fails.** An unreadable worktree `.pi/agents/` directory made the promise chain swallow the error: the menu closed with no spawn and no message. The wizard now warns and proceeds with the spawn the user asked for.
+- **Queued agents no longer offer a Steer action.** `manager.steer` always rejects a queued agent (it has no session yet); the action is now offered only while running.
 
 ## [1.19.0] - 2026-11-15
 
@@ -42,13 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Migrated the development environment and tooling to Vite+
-
-### Fixed
-
-- **Subagent spawns inherit the parent session's project trust.** A spawn without a `worktree_path` (and a same-repo worktree target) was always treated as trusted, so in a project whose trust the user declined, the subagent's resource loader still imported the project's `.pi/extensions`, skills, and settings — resources pi's own session refuses to load. Omitted paths now use `ctx.isProjectTrusted()`, and same-repo targets use the saved trust decision for the target path when one exists, falling back to the parent's state; an explicit saved decision still wins. Cross-repo gating is unchanged.
-- **A failed agent start no longer leaks its concurrency slot.** When `startAgent` threw after reserving a slot (e.g. the output-transcript file could not be created), neither the spawn nor the queue-drain failure path released the reservation, permanently lowering that model's effective concurrency. The reservation is now released on every pre-run failure.
-- **Spawn wizard no longer silently drops a spawn when agent discovery fails.** An unreadable worktree `.pi/agents/` directory made the promise chain swallow the error: the menu closed with no spawn and no message. The wizard now warns and proceeds with the spawn the user asked for.
-- **Queued agents no longer offer a Steer action.** `manager.steer` always rejects a queued agent (it has no session yet); the action is now offered only while running.
 
 ## [1.17.1] - 2026-10-16
 
@@ -77,14 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Both Thinking level annotations follow the same parent level.** Model settings fell back to the current session context and the wizard did not, so the two rows disagreed about one run.
 - **A Thinking level picked in the spawn wizard is clamped to the model the Subagent gets.** Choosing `(inherits parent)` was the one model change that skipped the clamp.
 - **The spawn wizard reads pi's per-model level for the model the Subagent actually runs on.** It used the parent's model even where the agent file pins another, so it offered levels that model cannot run.
-=======
-### Fixed
-
-- **Subagent spawns inherit the parent session's project trust.** A spawn without a `worktree_path` (and a same-repo worktree target) was always treated as trusted, so in a project whose trust the user declined, the subagent's resource loader still imported the project's `.pi/extensions`, skills, and settings — resources pi's own session refuses to load. Omitted paths now use `ctx.isProjectTrusted()`, and same-repo targets use the saved trust decision for the target path when one exists, falling back to the parent's state; an explicit saved decision still wins. Cross-repo gating is unchanged.
-- **A failed agent start no longer leaks its concurrency slot.** When `startAgent` threw after reserving a slot (e.g. the output-transcript file could not be created), neither the spawn nor the queue-drain failure path released the reservation, permanently lowering that model's effective concurrency. The reservation is now released on every pre-run failure.
-- **Spawn wizard no longer silently drops a spawn when agent discovery fails.** An unreadable worktree `.pi/agents/` directory made the promise chain swallow the error: the menu closed with no spawn and no message. The wizard now warns and proceeds with the spawn the user asked for.
-- **Queued agents no longer offer a Steer action.** `manager.steer` always rejects a queued agent (it has no session yet); the action is now offered only while running.
->>>>>>> 56a5fc60 (fix: close trust and failure-path gaps in agent spawning)
 
 ## [1.16.0] - 2026-10-05
 
