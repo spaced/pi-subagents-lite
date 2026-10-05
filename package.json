@@ -16,11 +16,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AlexParamonov/pi-subagents-lite.git"
+    "url": "git+https://github.com/spaced/pi-subagents-lite.git"
   },
-  "homepage": "https://github.com/AlexParamonov/pi-subagents-lite#readme",
+  "homepage": "https://github.com/spaced/pi-subagents-lite#readme",
   "bugs": {
-    "url": "https://github.com/AlexParamonov/pi-subagents-lite/issues"
+    "url": "https://github.com/spaced/pi-subagents-lite/issues"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": ">=0.82.0",
