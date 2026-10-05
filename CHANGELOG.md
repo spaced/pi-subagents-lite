@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agent state publication.** The manager publishes an `AgentStateSnapshot` (per-agent id, type, status, live context-usage percent) on the shared `pi.events` bus under the `pi-subagents-lite:state` channel on every subagent assistant message, for cross-extension consumers.
+- **Explicit per-call model override is preserved.** Passing `model` to the Agent tool no longer gets overwritten by the agent's configured/default model; the override is also surfaced in the spawn display (cherry-picked from Atif Mustaffa's fork).
+
 ### Changed
 
 - Migrated the development environment and tooling to Vite+: Node is pinned via `.node-version`, while dependency installation, Vitest, Oxfmt, Oxlint, and type checks run through `vp`. Oxlint now enforces the test-only no-explicit-`any` policy, replacing its Bash scanner. npm 11.9.0 is the pinned package-manager backend. The extension remains source-only, with no generated build output.
