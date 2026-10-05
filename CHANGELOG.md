@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agent state publication.** The manager publishes an `AgentStateSnapshot` (per-agent id, type, status, live context-usage percent) on the shared `pi.events` bus under the `pi-subagents-lite:state` channel on every subagent assistant message, for cross-extension consumers.
+- **Explicit per-call model override is preserved.** Passing `model` to the Agent tool no longer gets overwritten by the agent's configured/default model; the override is also surfaced in the spawn display (cherry-picked from Atif Mustaffa's fork).
+
 ### Fixed
 
 - **Subagent spawns inherit the parent session's project trust.** A spawn without a `worktree_path` (and a same-repo worktree target) was always treated as trusted, so in a project whose trust the user declined, the subagent's resource loader still imported the project's `.pi/extensions`, skills, and settings — resources pi's own session refuses to load. Omitted paths now use `ctx.isProjectTrusted()`, and same-repo targets use the saved trust decision for the target path when one exists, falling back to the parent's state; an explicit saved decision still wins. Cross-repo gating is unchanged.

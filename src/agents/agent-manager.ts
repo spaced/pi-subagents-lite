@@ -13,6 +13,8 @@ import { Watchdog } from "./watchdog.js";
 import { getStore } from "../shell.js";
 import {
   type AgentRecord,
+  type AgentStateEntry,
+  type AgentStateSnapshot,
   type AgentStatus,
   type RunCallbacks,
   type StopInitiator,
@@ -85,6 +87,7 @@ export interface SpawnOptions extends SpawnConfig, RunCallbacks {
 
 export class AgentManager {
   private agents = new Map<string, AgentRecord>();
+  private onStateChange?: (state: AgentStateSnapshot) => void;
   private watchdog = new Watchdog();
   private watchdogInterval: ReturnType<typeof setInterval>;
   private onComplete?: OnAgentComplete;
@@ -121,9 +124,30 @@ export class AgentManager {
 
   private queue: { id: string; modelKey: string; args: SpawnArgs }[] = [];
 
-  constructor(onComplete?: OnAgentComplete, concurrency?: ConcurrencyConfig, onStart?: OnAgentStart) {
+  /**
+   * Publish a snapshot of all agents for cross-extension consumers (see
+   * AGENT_STATE_CHANNEL). Lightweight projection; no I/O.
+   */
+  private publishState(): void {
+    if (!this.onStateChange) return;
+    const agents: AgentStateEntry[] = [...this.agents.values()].map((r) => ({
+      id: r.id,
+      type: r.display.type,
+      status: r.lifecycle.status,
+      contextPercent: r.lifecycle.status === "running" ? getSessionContextPercent(r.execution.session) : null,
+    }));
+    this.onStateChange({ at: Date.now(), agents });
+  }
+
+  constructor(
+    onComplete?: OnAgentComplete,
+    concurrency?: ConcurrencyConfig,
+    onStart?: OnAgentStart,
+    onStateChange?: (state: AgentStateSnapshot) => void,
+  ) {
     this.onComplete = onComplete;
     this.onStart = onStart;
+    this.onStateChange = onStateChange;
     this.defaultConcurrency = concurrency?.default ?? DEFAULT_CONCURRENCY_LIMIT;
 
     for (const [provider, limit] of Object.entries(concurrency?.providers ?? {})) {
@@ -342,6 +366,14 @@ export class AgentManager {
           options.onTurnEnd?.(turnCount);
         }),
         onSessionCreated: (session) => {
+          if (!this.agents.has(id)) {
+            const done = disposeChildSession(session);
+            this.pendingDisposals.add(done);
+            void done.then(() => {
+              this.pendingDisposals.delete(done);
+            });
+            return;
+          }
           record.execution.session = session;
           // Flush any steers that arrived before the session was ready
           if (record.execution.pendingSteers?.length) {
@@ -531,6 +563,7 @@ export class AgentManager {
       },
       onAssistantUsage: (usage) => {
         addUsage(record.stats.lifetimeUsage, usage);
+        this.publishState();
         forward?.onAssistantUsage?.(usage);
       },
       onCompaction: (info) => {

@@ -221,3 +221,23 @@ export interface AgentAccumulatedStats {
   /** Last-known context usage percentage (0–100), captured at completion. */
   contextPercent?: number | null;
 }
+
+// --- Cross-extension state publication (pi.events) ---
+
+/** Per-agent entry of an AgentStateSnapshot. */
+export interface AgentStateEntry {
+  id: string;
+  type: SubagentType;
+  status: AgentStatus;
+  /** Live context usage percentage (0–100) while running; null otherwise. */
+  contextPercent: number | null;
+}
+
+/** Snapshot of all agents, published on pi.events for cross-extension consumers. */
+export interface AgentStateSnapshot {
+  at: number;
+  agents: AgentStateEntry[];
+}
+
+/** pi.events channel carrying AgentStateSnapshot publications. */
+export const AGENT_STATE_CHANNEL = "pi-subagents-lite:state";
