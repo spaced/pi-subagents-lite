@@ -432,3 +432,73 @@ describe("navigation highlight adoption on roster shrink", () => {
     expect(widget.highlightedIndex()).toBe(1);
   });
 });
+
+/* ------------------------------------------------------------------ */
+/*  isEditorFocused                                                   */
+/* ------------------------------------------------------------------ */
+
+describe("isEditorFocused", () => {
+  let widget: AgentWidget;
+  let manager: AgentManager;
+  let activity: Map<string, LiveView>;
+
+  function bindTui(tui: unknown): void {
+    // renderWidgetLines binds the tui the setWidget factory receives to the
+    // widget (requires at least one visible agent so the widget registers).
+    const agent = makeRunningAgent("a1");
+    activity.set("a1", makeActivity("a1"));
+    manager.listAgents = () => [agent];
+    renderWidgetLines(widget, tui as never);
+  }
+
+  beforeEach(() => {
+    activity = new Map();
+    manager = makeMockManager([]);
+    widget = new AgentWidget(manager, (id) => activity.get(id));
+  });
+
+  it("editor-like focused component → focused", () => {
+    bindTui({ terminal: { columns: 100 }, focusedComponent: { getText: () => "", setText: () => {} } });
+    expect(widget.isEditorFocused()).toBe(true);
+  });
+
+  it("visible-but-unfocused overlay does not unfocus the editor (rail regression)", () => {
+    // Always-visible overlay extensions (e.g. a user's "Rail") leave the
+    // editor focused. isEditorFocused must key off the focused component,
+    // not hasOverlay(), or navigation can never activate while the rail is up.
+    bindTui({
+      terminal: { columns: 100 },
+      focusedComponent: { getText: () => "", setText: () => {} },
+      hasOverlay: () => true,
+    });
+    expect(widget.isEditorFocused()).toBe(true);
+  });
+
+  it("non-editor focused component (viewer/menu) → not focused", () => {
+    bindTui({ terminal: { columns: 100 }, focusedComponent: { handleInput: () => {} } });
+    expect(widget.isEditorFocused()).toBe(false);
+  });
+
+  it("no focused component → treated as focused", () => {
+    bindTui({ terminal: { columns: 100 } });
+    expect(widget.isEditorFocused()).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Navigation heading                                                 */
+/* ------------------------------------------------------------------ */
+
+describe("navigation heading", () => {
+  it("shows position readout and key hint while navigating", () => {
+    const agent = makeRunningAgent("a1");
+    const manager = makeMockManager([agent]);
+    const activity = new Map<string, LiveView>();
+    activity.set("a1", makeActivity("a1"));
+    const widget = new AgentWidget(manager, (id) => activity.get(id));
+    widget.navActivate();
+    const lines = renderWidgetLines(widget);
+    expect(lines[0]).toContain("1/1");
+    expect(lines[0]).toContain("enter view");
+  });
+});
