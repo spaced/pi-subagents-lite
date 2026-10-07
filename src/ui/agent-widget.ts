@@ -61,7 +61,6 @@ export type UICtx = {
 interface TUI {
   terminal: { columns: number };
   requestRender?(): void;
-  hasOverlay?(): boolean;
 }
 /** A visual block: one header line plus zero or more metadata lines. */
 interface RenderBlock {
@@ -455,11 +454,12 @@ export class AgentWidget {
   }
 
   isEditorFocused(): boolean {
-    // Overlays (ConversationViewer, model picker) → not focused.
-    if (this.tui?.hasOverlay?.()) return false;
-    // Menus (ctx.ui.select/confirm) replace the editor in editorContainer.
-    // Check if the focused component is the Editor via duck-typing:
-    // Editor is the only component with getText() + setText().
+    // The focused component is the source of truth: menus (ctx.ui.select/confirm)
+    // replace the editor in editorContainer, and focused overlays (ConversationViewer,
+    // model picker) take focus from it. Always-visible overlays that do NOT take
+    // focus (e.g. user rail extensions) leave the editor focused, so a hasOverlay()
+    // check here would wrongly block navigation.
+    // Duck-typing: Editor is the only component with getText() + setText().
     const focused = (this.tui as { focusedComponent?: unknown })?.focusedComponent;
     if (focused == null) return true;
     return (

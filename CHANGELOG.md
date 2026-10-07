@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A failed agent start no longer leaks its concurrency slot.** When `startAgent` threw after reserving a slot (e.g. the output-transcript file could not be created), neither the spawn nor the queue-drain failure path released the reservation, permanently lowering that model's effective concurrency. The reservation is now released on every pre-run failure.
 - **Spawn wizard no longer silently drops a spawn when agent discovery fails.** An unreadable worktree `.pi/agents/` directory made the promise chain swallow the error: the menu closed with no spawn and no message. The wizard now warns and proceeds with the spawn the user asked for.
 - **Queued agents no longer offer a Steer action.** `manager.steer` always rejects a queued agent (it has no session yet); the action is now offered only while running.
+- **Widget navigation (↓) works with always-visible overlay extensions present.** `isEditorFocused()` keyed off `tui.hasOverlay()`, which is true for *any* visible overlay — so an always-visible, non-focus-taking overlay (e.g. a user's rail extension) permanently reported the editor as unfocused and the ↓ key could never activate agent navigation. The check now keys off the focused component only: an overlay that takes focus (viewer, model picker) unfocuses the editor, while an unfocused overlay leaves it focused.
 
 ## [1.16.0] - 2026-10-05
 
