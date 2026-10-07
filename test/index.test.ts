@@ -214,13 +214,24 @@ describe("Agent tool schema — minimal", () => {
     expect(agentTool()!.promptGuidelines).toBeUndefined();
   });
 
-  it("exposes exactly the documented param set, each without a description", () => {
+  it("exposes exactly the documented param set", () => {
     const props = agentTool()!.parameters.properties as Record<string, SchemaJson>;
-    expect(Object.keys(props).sort()).toEqual(["agent", "description", "prompt", "run_in_background", "worktree_path"]);
-    // Params carry no description: the model learns them from the tool name alone.
+    expect(Object.keys(props).sort()).toEqual([
+      "agent",
+      "description",
+      "model",
+      "prompt",
+      "run_in_background",
+      "thinking",
+      "worktree_path",
+    ]);
+    // Core params carry no description: the model learns them from the tool name alone.
     expect(props.prompt.description).toBeUndefined();
     expect(props.worktree_path.description).toBeUndefined();
     expect(props.worktree_path.type).toBe("string");
+    // model/thinking are optional overrides that document their accepted values.
+    expect(props.model.description).toBeDefined();
+    expect(props.thinking.description).toBeDefined();
   });
 });
 

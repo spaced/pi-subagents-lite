@@ -9,6 +9,16 @@ Spawn custom agents in isolated session with own tools, extensions and model. Th
 
 Foreground and background agents with detailed model configuration, concurrency, custom agent types, steering and continuation, cross-repo worktree support, configurable system prompt modes, a live widget and conversation viewer with cost tracking, and a watchdog for stuck agents.
 
+## Differences from upstream
+
+Fork of [AlexParamonov/pi-subagents-lite](https://github.com/AlexParamonov/pi-subagents-lite) (remote `upstream`), rebased onto v1.16.0 — child sessions resolve tools exactly like a normal pi session (`loadToolsImplicitly`), load pi's built-in extensions, and terminate through one idempotent disposal path. The lite design drops pi-vault's scheduling, join modes, and chains.
+
+On top of upstream:
+
+- **Caller-defined model and thinking level.** The `Agent` tool accepts `model` and `thinking` params; an explicit per-call `model` is preserved rather than overwritten by the agent's configured/default model (cherry-picked from Atif Mustaffa's fork).
+- **Subagent spawns inherit the parent session's project trust.** A spawn without an explicit trust decision uses the parent session's own state, so it never loads project resources the parent is running without. A failed start releases its concurrency slot, the spawn wizard warns and proceeds when worktree agent discovery fails, and queued agents no longer offer a Steer action (cherry-picked from Bjorn Nordblom's fork).
+- **Agent state publication.** The manager publishes an `AgentStateSnapshot` (per-agent id, type, status, live context-usage percent) on the shared `pi.events` bus under the `pi-subagents-lite:state` channel, for cross-extension consumers.
+
 ## Install
 
 Requires Node.js >= 18 and pi >= 0.82.0.

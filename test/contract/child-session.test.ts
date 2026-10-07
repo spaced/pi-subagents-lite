@@ -172,7 +172,7 @@ async function until(condition: () => boolean, what: string): Promise<void> {
 /** The production child path: our wrapped built-in factories. */
 async function spawnChild(workspace: Workspace): Promise<AgentSession> {
   const { session } = await createChildSession(
-    asExtensionContext({ cwd: workspace.project, hasUI: false }),
+    asExtensionContext({ cwd: workspace.project, hasUI: false, isProjectTrusted: () => true }),
     "general-purpose",
     { pi: stubPi(), cwd: workspace.project },
   );
@@ -359,7 +359,7 @@ describe("contract: implicit OFF and explicit frontmatter", () => {
     const workspace = makeWorkspace("explicit-tools");
     workspace.writeGlobalSettings({ defaultTools: ["+codemode"] });
     const { session } = await createChildSession(
-      asExtensionContext({ cwd: workspace.project, hasUI: false }),
+      asExtensionContext({ cwd: workspace.project, hasUI: false, isProjectTrusted: () => true }),
       "contract-explicit",
       {
         pi: stubPi(),
@@ -381,7 +381,7 @@ describe("contract: implicit OFF and explicit frontmatter", () => {
     workspace.writeGlobalSettings({ defaultTools: ["+codemode"] });
     workspace.writeProbeExtension();
     const { session } = await createChildSession(
-      asExtensionContext({ cwd: workspace.project, hasUI: false }),
+      asExtensionContext({ cwd: workspace.project, hasUI: false, isProjectTrusted: () => true }),
       "contract-no-ext",
       {
         pi: stubPi(),
@@ -410,7 +410,7 @@ describe("contract: implicit OFF and explicit frontmatter", () => {
     workspace.writeGlobalSettings({ defaultTools: ["+codemode"] });
     workspace.writeProbeExtension();
     const { session } = await createChildSession(
-      asExtensionContext({ cwd: workspace.project, hasUI: false }),
+      asExtensionContext({ cwd: workspace.project, hasUI: false, isProjectTrusted: () => true }),
       "contract-only-codemode",
       { pi: stubPi(), cwd: workspace.project },
     );
@@ -439,7 +439,7 @@ describe("contract: implicit OFF and explicit frontmatter", () => {
     workspace.writeGlobalSettings({ defaultTools: ["+codemode"] });
     workspace.writeProbeExtension();
     const { session } = await createChildSession(
-      asExtensionContext({ cwd: workspace.project, hasUI: false }),
+      asExtensionContext({ cwd: workspace.project, hasUI: false, isProjectTrusted: () => true }),
       "contract-no-codemode",
       { pi: stubPi(), cwd: workspace.project },
     );
