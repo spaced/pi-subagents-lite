@@ -200,7 +200,13 @@ function appendMarker(workspace: Workspace, marker: string): void {
 
 /** The spawning-session ctx: the child path reads the parent session id off its session manager. */
 function parentCtx(project: string) {
-  return asExtensionContext({ cwd: project, hasUI: false, sessionManager: defaultSessionManager() });
+  return asExtensionContext({
+    cwd: project,
+    hasUI: false,
+    sessionManager: defaultSessionManager(),
+    // createChildSession defaults projectTrusted from the parent's trust state.
+    isProjectTrusted: () => true,
+  });
 }
 
 function stubPi(events?: EventBus) {
