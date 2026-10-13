@@ -23,6 +23,7 @@ import { extractText } from "../prompt/context.ts";
 import { resolveThinkingLevel } from "../models/thinking-resolution.ts";
 import type { AgentUsage } from "./usage.ts";
 import { findModelInRegistry, GIT_EXEC_TIMEOUT_MS } from "../utils.ts";
+import { shellToolLabel } from "./shell-detect.ts";
 import { DEFAULT_AGENTS } from "./default-agents.ts";
 import { buildAgentPrompt, type PromptExtras } from "../prompt/prompts.ts";
 import { preloadSkills, loadSkillMeta } from "../prompt/skill-loader.ts";
@@ -304,10 +305,13 @@ async function detectEnv(pi: ExtensionAPI, cwd: string): Promise<EnvInfo> {
   const isGitRepo = gitRoot === "true";
   const branch = isGitRepo ? await execGit(pi, ["branch", "--show-current"], cwd) : null;
 
+  const shellTool = shellToolLabel();
   return {
     isGitRepo,
     branch,
     platform: process.platform,
+    shellTool,
+    shellFallback: shellTool !== "bash",
   };
 }
 

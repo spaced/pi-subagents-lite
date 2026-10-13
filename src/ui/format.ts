@@ -192,6 +192,7 @@ export function agentColoredText(text: string, agentType: string | undefined): s
 const TOOL_DISPLAY: Record<string, string> = {
   read: "reading",
   bash: "running command",
+  powershell: "running command",
   edit: "editing",
   write: "writing",
   grep: "searching",

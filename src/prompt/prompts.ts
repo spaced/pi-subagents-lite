@@ -79,6 +79,13 @@ export function buildAgentPrompt(
     envLines.push(`Branch: ${env.branch}`);
   }
   envLines.push(`Platform: ${env.platform}`);
+  if (env.shellFallback) {
+    // Windows without a usable bash: the bash tool is not registered, so the
+    // model must not reach for it.
+    envLines.push(
+      `Shell tool: ${env.shellTool} (bash is not available on this machine — use ${env.shellTool} for all shell commands)`,
+    );
+  }
   const envBlock = envLines.join("\n");
 
   // Unified skill index — all skills in one <available_skills> block

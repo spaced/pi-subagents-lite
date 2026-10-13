@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vite-plus/test"
 import { mockModules, selectDialogInstances, resetSelectDialogInstances, resetConfig } from "../../menu-mock-setup.js";
 import { createMockCtx } from "../../menu-test-helpers.js";
 import { getAgentConfig, discoverNewAgents } from "../../../src/agents/agent-types.js";
-import { clampThinkingLevel, type Api, type Model, type ModelThinkingLevel } from "@earendil-works/pi-ai";
+import { type Api, type Model, type ModelThinkingLevel } from "@earendil-works/pi-ai";
 import type { Component, SelectItem, SettingItem, SettingsListTheme, SelectListTheme } from "@earendil-works/pi-tui";
 import type { ThinkingLevel } from "../../../src/types.js";
 import type { PiSettingsScope } from "../../../src/pi-settings.js";

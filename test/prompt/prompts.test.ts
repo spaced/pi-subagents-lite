@@ -19,6 +19,8 @@ const env: EnvInfo = {
   isGitRepo: true,
   branch: "main",
   platform: "linux",
+  shellTool: "bash",
+  shellFallback: false,
 };
 
 describe("buildAgentPrompt", () => {
@@ -134,6 +136,45 @@ describe("buildAgentPrompt", () => {
     expect(result).toContain("<name>visible</name>");
     expect(result).not.toContain("<name>hidden</name>");
     expect(result).not.toContain("Hidden skill");
+  });
+});
+
+describe("buildAgentPrompt — shell fallback", () => {
+  it("adds a shell tool line when shellFallback is true", () => {
+    const windowsEnv: EnvInfo = {
+      isGitRepo: true,
+      branch: "main",
+      platform: "win32",
+      shellTool: "powershell",
+      shellFallback: true,
+    };
+    const result = buildAgentPrompt(baseConfig, "/test/cwd", windowsEnv, {}, "replace");
+
+    expect(result).toContain(
+      "Shell tool: powershell (bash is not available on this machine — use powershell for all shell commands)",
+    );
+  });
+
+  it("adds no shell tool line when bash is available", () => {
+    const result = buildAgentPrompt(baseConfig, "/test/cwd", env, {}, "replace");
+
+    expect(result).not.toContain("Shell tool:");
+  });
+
+  it("shell line appears after Platform line", () => {
+    const windowsEnv: EnvInfo = {
+      isGitRepo: false,
+      branch: null,
+      platform: "win32",
+      shellTool: "powershell",
+      shellFallback: true,
+    };
+    const result = buildAgentPrompt(baseConfig, "/test/cwd", windowsEnv, {}, "replace");
+
+    const platformIdx = result.indexOf("Platform: win32");
+    const shellIdx = result.indexOf("Shell tool: powershell");
+    expect(platformIdx).toBeGreaterThanOrEqual(0);
+    expect(shellIdx).toBeGreaterThan(platformIdx);
   });
 });
 

@@ -53,6 +53,10 @@ export interface EnvInfo {
   isGitRepo: boolean;
   branch: string | null;
   platform: string;
+  /** Shell tool available in this environment: "bash" or "powershell". */
+  shellTool: string;
+  /** True when the platform's default shell tool was unavailable and a fallback was chosen. */
+  shellFallback: boolean;
 }
 
 /**
