@@ -13,11 +13,20 @@ import type { AgentConfig } from "./types.ts";
 /**
  * All pi built-in tool names for validation/warning suppression.
  *
- * This set contains ALL built-in tools (including grep, find, ls)
+ * This set contains ALL built-in tools (including grep, find, ls, powershell)
  * and is used ONLY for name recognition in agent configs.
  * It is not a gate: the session tool options own what registers.
  */
-export const BUILTIN_TOOL_NAMES: readonly string[] = ["read", "bash", "edit", "write", "grep", "find", "ls"];
+export const BUILTIN_TOOL_NAMES: readonly string[] = [
+  "read",
+  "bash",
+  "edit",
+  "write",
+  "grep",
+  "find",
+  "ls",
+  "powershell",
+];
 
 const agents = new Map<string, AgentConfig>();
 

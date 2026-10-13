@@ -354,6 +354,8 @@ const env: EnvInfo = {
   isGitRepo: true,
   branch: "main",
   platform: "linux",
+  shellTool: "bash",
+  shellFallback: false,
 };
 
 function createProofSkill() {
