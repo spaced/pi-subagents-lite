@@ -277,7 +277,7 @@ describe("buildAgentActionsList — actions submenu", () => {
     const list = buildAgentActionsList(
       createMockCtx(),
       record,
-      noopTheme,
+      defaultTheme,
       () => {},
       () => {},
       () => {},
